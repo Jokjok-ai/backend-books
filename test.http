@@ -1,0 +1,59 @@
+POST http://localhost:3000/api/members
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Susanto",
+  "quota": 5
+}
+
+###
+
+GET http://localhost:3000/api/members/2
+Content-Type: application/json
+Accept: application/json
+
+
+###
+
+POST http://localhost:3000/api/addbook
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title" : "One Piece",
+  "author" : "Oda",
+  "stock" : 5
+}
+###
+
+GET http://localhost:3000/api/listbook
+Content-Type: application/json
+Accept: application/json
+
+###
+
+POST http://localhost:3000/api/borrow
+Content-Type: application/json
+Accept: application/json
+
+{
+  "member_id": 10,
+  "book_id": 1
+}
+###
+
+POST http://localhost:3000/api/return
+Content-Type: application/json
+Accept: application/json
+
+{
+  "member_id": 10,
+  "book_id": 1
+}
+###
+
+GET http://localhost:3000/api/getbook/2
+Content-Type: application/json
+Accept: application/json
+

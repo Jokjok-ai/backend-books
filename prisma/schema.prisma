@@ -1,0 +1,217 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+
+  //kalau pakai? boleh null
+model User {
+  username String    @id @db.VarChar(100)
+  password String    @db.VarChar(100)
+  name     String    @db.VarChar(100)
+  token    String?   @db.VarChar(100)
+  contacts Contact[]
+
+  @@map("users")
+}
+
+model Contact {
+  id         Int       @id @default(autoincrement())
+  first_name String    @db.VarChar(100)
+  last_name  String?   @db.VarChar(100)
+  email      String?   @db.VarChar(200)
+  phone      String?   @db.VarChar(20)
+  username   String    @db.VarChar(100)
+  user       User      @relation(fields: [username], references: [username])
+  addresses  Address[]
+
+  @@map("contacts")
+}
+
+model Address {
+  id          Int     @id @default(autoincrement())
+  street      String? @db.VarChar(255)
+  city        String? @db.VarChar(100)
+  province    String? @db.VarChar(100)
+  country     String  @db.VarChar(100)
+  postal_code String  @db.VarChar(10)
+  contact_id  Int
+  contact     Contact @relation(fields: [contact_id], references: [id])
+
+  @@map("addresses")
+}
+
+model Exam {
+  id           Int             @id @default(autoincrement())
+  title        String
+  subject      String
+  description  String
+  duration     Int
+  sum_question Int
+  exam_type    String
+  status       String
+  questions    ExamQuestion[]
+}
+
+model ExamQuestion {
+  id        Int          @id @default(autoincrement())
+  text      String
+  score     Int
+  type      String
+  examId    Int
+  exam      Exam         @relation(fields: [examId], references: [id])
+  options   ExamOption[]
+}
+
+model ExamOption {
+  id          Int    @id @default(autoincrement())
+  label       String
+  text        String
+  isCorrect   Boolean
+  questionId  Int
+  question    ExamQuestion @relation(fields: [questionId], references: [id])
+}
+
+model PublicParticipant {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(150)
+  email     String   @db.VarChar(200)
+  phone     String?  @db.VarChar(30)
+  createdAt DateTime @default(now())
+
+  attempts  PublicAttempt[]
+
+  @@map("public_participants")
+}
+
+model PublicAttempt {
+  id            Int      @id @default(autoincrement())
+  participantId Int
+  // optional: simpan examId untuk referensi nama ujian, statistik, dll.
+  // tapi attempt snapshot tetap aman walau exam dihapus
+  examId        Int?
+  examTitle     String   @db.VarChar(200)  // snapshot judul
+  examSubject   String   @db.VarChar(200)  // snapshot subject
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  totalQuestion Int      @default(0)
+  correctCount  Int      @default(0)
+  score         Float    @default(0)
+
+  participant   PublicParticipant @relation(fields: [participantId], references: [id])
+  questions     AttemptQuestionSnapshot[]
+  answers       AttemptAnswer[]
+
+  @@index([participantId])
+  @@index([examId])
+  @@map("public_attempts")
+}
+
+model AttemptQuestionSnapshot {
+  id         Int    @id @default(autoincrement())
+  attemptId  Int
+  // optional: referensi original (biar admin bisa trace), tapi tidak wajib
+  sourceQuestionId Int?
+  text       String @db.Text
+  score      Int
+  type       String @db.VarChar(50)
+
+  options    AttemptOptionSnapshot[]
+  answers         AttemptAnswer[]
+
+  attempt    PublicAttempt @relation(fields: [attemptId], references: [id])
+
+  @@index([attemptId])
+  @@map("attempt_questions")
+}
+
+model AttemptOptionSnapshot {
+  id         Int    @id @default(autoincrement())
+  questionId Int
+  // optional: referensi original
+  sourceOptionId Int?
+  label      String @db.VarChar(5)   // A/B/C/D
+  text       String @db.Text
+  isCorrect  Boolean @default(false) // snapshot kunci
+
+  question   AttemptQuestionSnapshot @relation(fields: [questionId], references: [id])
+  answers    AttemptAnswer[]
+
+  @@index([questionId])
+  @@map("attempt_options")
+}
+
+model AttemptAnswer {
+  id              Int    @id @default(autoincrement())
+  attemptId       Int
+  questionSnapId  Int
+  optionSnapId    Int?    // null untuk essay (nanti)
+
+  isCorrect       Boolean @default(false)
+
+  attempt         PublicAttempt @relation(fields: [attemptId], references: [id])
+  questionSnap    AttemptQuestionSnapshot @relation(fields: [questionSnapId], references: [id])
+  optionSnap      AttemptOptionSnapshot?  @relation(fields: [optionSnapId], references: [id])
+
+  @@unique([attemptId, questionSnapId])
+  @@index([attemptId])
+  @@map("attempt_answers")
+}
+
+
+model Member {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(150)
+  quota     Int      @default(2) // maksimal peminjaman aktif
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  borrows   Borrow[]
+
+  @@map("members")
+}
+
+model Book {
+  id         Int      @id @default(autoincrement())
+  title      String   @db.VarChar(200)
+  author     String?  @db.VarChar(150)
+
+  totalStock Int      @default(0) // jumlah asli
+  stock      Int      @default(0) // sisa tersedia
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  borrows    Borrow[]
+
+  @@index([title])
+  @@map("books")
+}
+
+model Borrow {
+  id         Int      @id @default(autoincrement())
+  memberId   Int
+  bookId     Int
+  borrowedAt DateTime @default(now())
+  returnedAt DateTime?
+
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Restrict)
+
+  // membantu query kuota: cari borrow aktif dengan cepat
+  @@index([memberId, returnedAt])
+  @@index([bookId, returnedAt])
+
+  @@map("borrows")
+}
